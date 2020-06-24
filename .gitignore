@@ -1,0 +1,16 @@
+.gradle/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.class
+private/
+tmp/
+*.swp
+out/
+build/
+.classpath
+.project
+.settings/
+h2ologs/
+target/

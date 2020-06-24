@@ -1,0 +1,148 @@
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'idea'
+
+apply plugin: 'application'
+mainClassName = 'com.martil.bitcoin.bot.SparkDemo'
+version = '1.0'
+
+// build script to fetch plugins and put them in classpath
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.0.0'
+        classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:1.0.1'
+    }
+}
+
+// Configure basic project properties
+ext {
+    scalaBaseVersion = '2.12'
+    scalaVersion = "${scalaBaseVersion}.11"
+    scalaTestVersion = '3.2.0'
+    junitVersion = '4.12'
+    sparkVersion = '3.0.0'
+    sparklingWaterVesrion = '3.30.0.5-1-3.0'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_13
+    targetCompatibility = JavaVersion.VERSION_13
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.scala-lang:scala-library:${scalaVersion}"
+    compile "org.apache.spark:spark-core_${scalaBaseVersion}:${sparkVersion}"
+    compile "org.apache.spark:spark-repl_${scalaBaseVersion}:${sparkVersion}"
+    compile "org.apache.spark:spark-streaming_${scalaBaseVersion}:${sparkVersion}"
+    compile "org.apache.spark:spark-sql_${scalaBaseVersion}:${sparkVersion}"
+    compile "org.apache.spark:spark-mllib_${scalaBaseVersion}:${sparkVersion}"
+    compile "ai.h2o:sparkling-water-core_${scalaBaseVersion}:${sparklingWaterVesrion}"
+    testCompile "junit:junit:${junitVersion}"
+    testCompile "org.scalatest:scalatest_${scalaBaseVersion}:${scalaTestVersion}"
+}
+
+// Advanced project setup
+group = "com.martil"
+
+// Activate Zinc compiler to configure scalac
+tasks.withType(ScalaCompile) {
+    scalaCompileOptions.additionalParameters = [
+            "-target:jvm-1.8",
+            "-feature",
+            "-language:reflectiveCalls",
+            "-language:postfixOps",
+            "-language:existentials",
+            "-language:implicitConversions",
+    ]
+}
+
+// In resulting jar include Scala binary version
+jar {
+    baseName = "${project.name}_${scalaBaseVersion}"
+}
+
+// Check Scala coding conventions
+apply from: 'gradle/scalastyle.gradle'
+
+// Configure assembly to create Spark application
+
+// Support for application assembly
+apply plugin: 'com.github.johnrengelman.shadow'
+
+shadowJar {
+    // Configure name of output jar as sparkling-water-droplet-app.jar
+    appendix = 'app'
+    archiveName = "${baseName}-${appendix}.${extension}"
+
+    mergeServiceFiles()
+    relocate 'javassist', 'ai.h2o.javassist'
+    // Relocate Eclipse Jetty to avoid collisions with Spark Jetty (newer version)
+    relocate 'org.eclipse.jetty', 'ai.h2o.org.eclipse.jetty'
+    relocate 'com.google.common', 'ai.h2o.com.google.common'
+    dependencies {
+        // This has to be specific list of dependencies :-(
+        // Apparently, Sparkling Water App is intended to run inside Spark environment providing some jars on classpath
+        include(dependency("ai.h2o:sparkling-water-core_${scalaBaseVersion}"))
+        include(dependency("ai.h2o:sparkling-water-examples_${scalaBaseVersion}"))
+        include(dependency("ai.h2o:sparkling-water-repl_${scalaBaseVersion}"))
+        include(dependency("ai.h2o:sparkling-water-ml_${scalaBaseVersion}"))
+        include(dependency("ai.h2o:h2o-genmodel"))
+        include(dependency("ai.h2o:h2o-core"))
+        include(dependency("ai.h2o:h2o-scala_${scalaBaseVersion}"))
+        include(dependency("ai.h2o:h2o-web"))
+        include(dependency("ai.h2o:h2o-algos"))
+        include(dependency("ai.h2o:h2o-automl"))
+        include(dependency("ai.h2o:h2o-persist-hdfs"))
+        include(dependency("ai.h2o:h2o-persist-s3"))
+        include(dependency("ai.h2o:h2o-persist-gcs"))
+        include(dependency("com.google.cloud:.*"))
+        include(dependency("com.google.auth:.*"))
+        include(dependency("com.google.api:.*"))
+        include(dependency("com.google.api-client:.*"))
+        include(dependency("com.google.http-client:.*"))
+        include(dependency("com.google.oauth-client:.*"))
+        include(dependency("com.google.api:.*"))
+        include(dependency("com.google.apis:.*"))
+        include(dependency("org.threeten:threetenbp"))
+        include(dependency("io.opencensus:.*"))
+        include(dependency("io.grpc:grpc-context"))
+        include(dependency("com.google.guava:guava"))
+        include(dependency("com.google.guava:guava-concurrent"))
+        include(dependency("ai.h2o:h2o-avro-parser"))
+        include(dependency("ai.h2o:h2o-orc-parser"))
+        include(dependency("ai.h2o:h2o-parquet-parser"))
+        include(dependency("ai.h2o:reflections"))
+        include(dependency("ai.h2o:google-analytics-java"))
+        include(dependency("ai.h2o:deepwater-backend-api"))
+        include(dependency("ai.h2o:h2o-ext-xgboost"))
+        include(dependency("ai.h2o:h2o-genmodel-ext-xgboost"))
+        include(dependency("ai.h2o:h2o-jetty-8"))
+        include(dependency("ai.h2o:h2o-webserver-iface"))
+        include(dependency("joda-time:joda-time"))
+        include(dependency("org.joda:joda-convert"))
+        include(dependency("org.javassist:javassist"))
+        include(dependency("gov.nist.math:jama"))
+        include(dependency("com.google.code.gson:gson"))
+        include(dependency("com.github.tony19:named-regexp"))
+        include(dependency("com.amazonaws:aws-java-sdk-s3"))
+        include(dependency("com.amazonaws:aws-java-sdk-kms"))
+        include(dependency("com.amazonaws:aws-java-sdk-core"))
+        include(dependency("no.priv.garshol.duke:duke"))
+        include(dependency("org.eclipse.jetty:.*"))
+
+        baseName = "${baseName}_${scalaBaseVersion}"
+    }
+}
+
+artifacts {
+    compile shadowJar
+}
